@@ -32,6 +32,14 @@ OPTIONAL_TOOLS: list[Tool] = [
         condition="port_web",
     ),
     Tool(
+        id="nmap_http_vuln",
+        label="nmap (http-vuln)",
+        command_template="nmap --script http-vuln-* -p 80,443 {target}",
+        description="HTTP vulnerability scripts — LFI, shellshock, CVE checks",
+        optional=True,
+        condition="port_web",
+    ),
+    Tool(
         id="nmap_smb_vuln",
         label="nmap (smb-vuln)",
         command_template="nmap --script smb-vuln-* -p 445 {target}",
@@ -40,10 +48,18 @@ OPTIONAL_TOOLS: list[Tool] = [
         condition="port_smb",
     ),
     Tool(
+        id="smbmap",
+        label="smbmap",
+        command_template="smbmap -H {target}",
+        description="Map SMB shares and permissions — identifies writable shares",
+        optional=True,
+        condition="port_smb",
+    ),
+    Tool(
         id="nmap_ftp_anon",
         label="nmap (ftp-anon)",
-        command_template="nmap --script ftp-anon -p 21 {target}",
-        description="Check for anonymous FTP access",
+        command_template="nmap --script ftp-anon,ftp-bounce,ftp-proftpd-backdoor,ftp-vsftpd-backdoor -p 21 {target}",
+        description="Check anonymous FTP access and known FTP backdoors",
         optional=True,
         condition="port_ftp",
     ),
@@ -54,6 +70,22 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="MySQL information gathering and empty-password check",
         optional=True,
         condition="port_mysql",
+    ),
+    Tool(
+        id="nmap_distcc_vuln",
+        label="nmap (distcc RCE)",
+        command_template="nmap --script distcc-cve2004-2687 -p 3632 {target}",
+        description="Confirm distccd RCE — CVE-2004-2687 (common HTB Lame path)",
+        optional=True,
+        condition="port_distcc",
+    ),
+    Tool(
+        id="nmap_nfs_vuln",
+        label="nmap (nfs-ls)",
+        command_template="nmap --script nfs-ls,nfs-statfs -p 2049 {target}",
+        description="List NFS share contents — may expose world-readable sensitive files",
+        optional=True,
+        condition="port_nfs",
     ),
 ]
 
@@ -66,6 +98,8 @@ def get_tools(open_ports: set[int]) -> list[Tool]:
         "port_smb": bool(open_ports & {445, 139}),
         "port_ftp": bool(open_ports & {21}),
         "port_mysql": bool(open_ports & {3306}),
+        "port_distcc": bool(open_ports & {3632}),
+        "port_nfs": bool(open_ports & {2049}),
     }
     for tool in OPTIONAL_TOOLS:
         if tool.condition and conditions.get(tool.condition, False):

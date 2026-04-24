@@ -136,6 +136,60 @@ rules:
 
   # ── Phase 4 triggers ────────────────────────────────────────
 
+  - id: distcc_port
+    description: distccd service detected — check CVE-2004-2687 RCE (HTB Lame)
+    condition: port_open
+    ports: [3632]
+    actions:
+      - nmap_distcc_vuln
+      - msf_distcc
+
+  - id: nfs_port
+    description: NFS service detected — check for world-accessible exports
+    condition: port_open
+    ports: [2049, 111]
+    actions:
+      - nmap_nfs_vuln
+      - nfs_check
+
+  # ── Specific vulnerable version mappings (HTB-style) ───────────
+
+  - id: samba_3020
+    description: Samba 3.0.20 usermap_script RCE — CVE-2007-2447 (HTB Lame)
+    condition: version_match
+    pattern: "Samba 3\\.0\\.20"
+    cve: CVE-2007-2447
+    actions:
+      - msf_samba_usermap
+      - searchsploit
+
+  - id: distcc_version
+    description: distccd version detected — likely vulnerable to CVE-2004-2687
+    condition: version_match
+    pattern: "distccd"
+    cve: CVE-2004-2687
+    actions:
+      - msf_distcc
+      - nmap_distcc_vuln
+
+  - id: iis_old
+    description: Old IIS version — check for WebDAV or known RCE CVEs
+    condition: version_match
+    pattern: "IIS[/ ][56]\\."
+    actions:
+      - searchsploit
+      - nikto
+
+  - id: openssh_old
+    description: OpenSSH < 7.7 — user enumeration possible (CVE-2018-15473)
+    condition: version_match
+    pattern: "OpenSSH [1-7]\\.[0-6]"
+    cve: CVE-2018-15473
+    actions:
+      - searchsploit
+
+  # ── Phase 4 privilege escalation triggers ───────────────────────
+
   - id: shadow_obtained
     description: /etc/shadow obtained — recommend hash cracking
     condition: file_obtained

@@ -38,6 +38,14 @@ OPTIONAL_TOOLS: list[Tool] = [
         condition="port_web",
     ),
     Tool(
+        id="gobuster_vhost",
+        label="gobuster (vhost)",
+        command_template="gobuster vhost -u http://{target} -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain",
+        description="Virtual host enumeration — finds hidden subdomains",
+        optional=True,
+        condition="port_web",
+    ),
+    Tool(
         id="dnsenum",
         label="dnsenum",
         command_template="dnsenum {target}",
@@ -54,12 +62,44 @@ OPTIONAL_TOOLS: list[Tool] = [
         condition="port_smb",
     ),
     Tool(
+        id="smbclient_list",
+        label="smbclient (null session)",
+        command_template="smbclient -L //{target} -N",
+        description="List SMB shares via null session — checks anonymous access",
+        optional=True,
+        condition="port_smb",
+    ),
+    Tool(
         id="smtp_user_enum",
         label="smtp-user-enum",
         command_template="smtp-user-enum -M VRFY -U /usr/share/wordlists/metasploit/unix_users.txt -t {target}",
         description="SMTP user enumeration via VRFY",
         optional=True,
         condition="port_smtp",
+    ),
+    Tool(
+        id="nmap_distcc",
+        label="nmap (distcc-cve2004-2687)",
+        command_template="nmap --script distcc-cve2004-2687 -p 3632 {target}",
+        description="Check distccd RCE — CVE-2004-2687 (HTB Lame vector)",
+        optional=True,
+        condition="port_distcc",
+    ),
+    Tool(
+        id="nmap_rpcinfo",
+        label="nmap (rpcinfo)",
+        command_template="nmap --script rpcinfo -p 111 {target}",
+        description="Enumerate RPC services — reveals NFS, mountd, etc.",
+        optional=True,
+        condition="port_rpc",
+    ),
+    Tool(
+        id="nmap_nfs",
+        label="nmap (nfs-showmount)",
+        command_template="nmap --script nfs-showmount -p 2049 {target}",
+        description="List NFS exports — misconfigured shares may allow direct mount",
+        optional=True,
+        condition="port_nfs",
     ),
 ]
 
@@ -79,6 +119,9 @@ def get_tools(target: str, open_ports: set[int] | None = None) -> list[Tool]:
         "port_web": bool(open_ports & {80, 443, 8080, 8443}),
         "port_smb": bool(open_ports & {445, 139}),
         "port_smtp": bool(open_ports & {25, 587}),
+        "port_distcc": bool(open_ports & {3632}),
+        "port_rpc": bool(open_ports & {111}),
+        "port_nfs": bool(open_ports & {2049}),
         "domain_target": not target.replace(".", "").isdigit(),
     }
 
