@@ -1,0 +1,152 @@
+# SecHub default rule table
+# When a condition is met, the listed actions are shown in the Recommendations panel.
+# To add custom rules, edit this file or create rules/custom.yaml — it is merged automatically.
+
+rules:
+
+  # ── Phase 1 → Phase 2 triggers ─────────────────────────────
+
+  - id: web_ports
+    description: Web service port detected
+    condition: port_open
+    ports: [80, 443, 8080, 8443]
+    actions:
+      - nikto
+      - whatweb
+      - gobuster
+
+  - id: smb_port
+    description: SMB port detected
+    condition: port_open
+    ports: [445, 139]
+    actions:
+      - enum4linux
+      - nmap_smb_vuln
+
+  - id: ftp_port
+    description: FTP port detected
+    condition: port_open
+    ports: [21]
+    actions:
+      - nmap_ftp_anon
+
+  - id: smtp_port
+    description: SMTP port detected
+    condition: port_open
+    ports: [25, 587]
+    actions:
+      - smtp_user_enum
+
+  - id: mysql_port
+    description: MySQL port detected
+    condition: port_open
+    ports: [3306]
+    actions:
+      - nmap_mysql
+
+  - id: rdp_port
+    description: RDP port detected
+    condition: port_open
+    ports: [3389]
+    actions:
+      - nmap_rdp_check
+
+  - id: ssh_port
+    description: SSH port detected
+    condition: port_open
+    ports: [22]
+    actions:
+      - nmap_ssh_check
+
+  - id: dns_port
+    description: DNS port detected
+    condition: port_open
+    ports: [53]
+    actions:
+      - dnsenum
+
+  # ── Service version detected → searchsploit ─────────────────
+
+  - id: service_version
+    description: Service version string detected — search for public exploits
+    condition: service_version_detected
+    actions:
+      - searchsploit
+      - nvd_lookup
+
+  # ── Known vulnerable version direct mappings ────────────────
+
+  - id: vsftpd_234
+    description: vsftpd 2.3.4 backdoor (CVE-2011-2523)
+    condition: version_match
+    pattern: "vsftpd 2\\.3\\.4"
+    cve: CVE-2011-2523
+    actions:
+      - searchsploit
+      - msf_vsftpd_234
+
+  - id: samba_eternal
+    description: Samba EternalRed (CVE-2017-7494)
+    condition: version_match
+    pattern: "Samba 3\\."
+    cve: CVE-2017-7494
+    actions:
+      - searchsploit
+      - msf_samba_usermap
+
+  - id: apache_2449
+    description: Apache 2.4.49/2.4.50 path traversal RCE (CVE-2021-41773)
+    condition: version_match
+    pattern: "Apache httpd 2\\.4\\.4[89]"
+    cve: CVE-2021-41773
+    actions:
+      - searchsploit
+      - nikto
+
+  # ── Phase 2 → Phase 3 triggers ─────────────────────────────
+
+  - id: high_cvss
+    description: CVE with CVSS >= 7.0 found — highlight Phase 3
+    condition: cvss_gte
+    value: 7.0
+    actions:
+      - highlight_phase3
+
+  - id: exploit_found
+    description: Valid exploit found — recommend MSF or manual script
+    condition: exploit_available
+    actions:
+      - msf_lookup
+      - searchsploit_mirror
+
+  # ── Phase 3 optional tools ──────────────────────────────────
+
+  - id: sqli_possible
+    description: Web service detected — SQL injection may be viable
+    condition: web_service_detected
+    actions:
+      - sqlmap
+
+  - id: credential_service
+    description: Login service detected — brute-force may be viable
+    condition: port_open
+    ports: [22, 21, 3389, 23, 25, 110, 143]
+    actions:
+      - hydra
+
+  # ── Phase 4 triggers ────────────────────────────────────────
+
+  - id: shadow_obtained
+    description: /etc/shadow obtained — recommend hash cracking
+    condition: file_obtained
+    pattern: "/etc/shadow"
+    actions:
+      - john
+      - hashcat
+
+  - id: hash_detected
+    description: Hash string detected in output — recommend cracking
+    condition: hash_detected
+    actions:
+      - john
+      - hashcat

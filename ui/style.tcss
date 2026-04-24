@@ -1,0 +1,153 @@
+/* ── Global ───────────────────────────────────────────────── */
+Screen {
+    background: #0d1117;
+    color: #c9d1d9;
+}
+
+/* ── Target input screen ───────────────────────────────────── */
+#target_container {
+    align: center middle;
+    width: 60;
+    height: auto;
+    border: solid #30363d;
+    padding: 2 4;
+    background: #161b22;
+}
+
+#banner {
+    color: #58a6ff;
+    text-align: center;
+}
+
+#subtitle {
+    color: #8b949e;
+    text-align: center;
+}
+
+/* ── Header bar ────────────────────────────────────────────── */
+#header_bar {
+    background: #21262d;
+    color: #58a6ff;
+    padding: 0 2;
+    height: 1;
+}
+
+/* ── Main panels ───────────────────────────────────────────── */
+#main_panels {
+    height: 1fr;
+}
+
+#tool_panel {
+    width: 30;
+    border-right: solid #30363d;
+    background: #161b22;
+}
+
+#output_panel {
+    width: 1fr;
+    background: #0d1117;
+}
+
+.panel_title {
+    background: #21262d;
+    color: #8b949e;
+    padding: 0 1;
+    height: 1;
+}
+
+/* ── Recommendations panel ─────────────────────────────────── */
+#rec_panel {
+    height: 6;
+    border-top: solid #30363d;
+    background: #161b22;
+}
+
+#rec_log {
+    padding: 0 1;
+}
+
+/* ── Tool input modal ──────────────────────────────────────── */
+#tool_input_container {
+    align: center middle;
+    width: 60;
+    height: auto;
+    border: solid #30363d;
+    padding: 2 4;
+    background: #161b22;
+}
+
+/* ── Help / report modals ──────────────────────────────────── */
+#help_container {
+    align: center middle;
+    width: 60;
+    height: auto;
+    border: solid #30363d;
+    padding: 2 4;
+    background: #161b22;
+}
+
+#report_container {
+    width: 90%;
+    height: 90%;
+    border: solid #30363d;
+    padding: 1 2;
+    background: #161b22;
+}
+
+/* ── Session select ────────────────────────────────────────── */
+#session_container {
+    align: center middle;
+    width: 70;
+    height: 30;
+    border: solid #30363d;
+    padding: 1 2;
+    background: #161b22;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+Button {
+    margin: 1 0;
+}
+
+Button.-primary {
+    background: #1f6feb;
+}
+
+Button:hover {
+    background: #388bfd;
+}
+
+/* ── ListView ──────────────────────────────────────────────── */
+ListView {
+    background: #161b22;
+}
+
+ListItem {
+    padding: 0 1;
+}
+
+ListItem:hover {
+    background: #21262d;
+}
+
+ListItem.-highlighted {
+    background: #1f6feb;
+    color: #ffffff;
+}
+
+/* ── Input ─────────────────────────────────────────────────── */
+Input {
+    background: #21262d;
+    border: solid #30363d;
+    color: #c9d1d9;
+}
+
+Input:focus {
+    border: solid #58a6ff;
+}
+
+/* ── RichLog ───────────────────────────────────────────────── */
+RichLog {
+    background: #0d1117;
+    padding: 0 1;
+}
