@@ -3,6 +3,7 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.widgets import ListView
 
 from core.analyzer import Analyzer
 from core.parser import parse_nmap, parse_whois, parse_searchsploit, parse_nikto, score_exploits
@@ -215,6 +216,15 @@ class SecHubApp(App):
 
     # ── Keybinding actions ────────────────────────────────────────
 
+<<<<<<< HEAD
+=======
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.list_view.id == "tool_list" and event.item is not None:
+            index = event.list_view.index
+            if index is not None:
+                self.selected_tool_index = index
+
+>>>>>>> c96ce3a (Initial commit: SecHub TUI penetration testing workflow tool)
     def action_skip_tool(self) -> None:
         if self.current_tools:
             self.selected_tool_index = min(
