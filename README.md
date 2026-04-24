@@ -69,7 +69,7 @@ Python 3.11 or later is required.
 
 ```bash
 git clone https://github.com/muzom-142857/SecHub.git
-cd sechub
+cd SecHub
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
