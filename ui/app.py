@@ -216,15 +216,12 @@ class SecHubApp(App):
 
     # ── Keybinding actions ────────────────────────────────────────
 
-<<<<<<< HEAD
-=======
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.list_view.id == "tool_list" and event.item is not None:
             index = event.list_view.index
             if index is not None:
                 self.selected_tool_index = index
 
->>>>>>> c96ce3a (Initial commit: SecHub TUI penetration testing workflow tool)
     def action_skip_tool(self) -> None:
         if self.current_tools:
             self.selected_tool_index = min(
