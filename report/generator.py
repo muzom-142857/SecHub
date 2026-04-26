@@ -84,17 +84,65 @@ def _build_markdown(session: "Session") -> str:
             lines.append(f"| {c['cve_id']} | {score} | {desc} |")
         lines.append("")
 
+    gobuster = p2.get("gobuster", [])
+    if gobuster:
+        lines += ["### Web Directories (gobuster)", ""]
+        for entry in gobuster[:20]:
+            lines.append(f"- `{entry['path']}` — HTTP {entry['status']}")
+        lines.append("")
+
+    whatweb = p2.get("whatweb", [])
+    if whatweb:
+        lines += ["### Web Technologies (whatweb)", ""]
+        for entry in whatweb:
+            techs = ", ".join(
+                f"{t['name']} [{t['version']}]" for t in entry.get("technologies", [])
+            )
+            lines.append(f"- `{entry['url']}` — {techs}")
+        lines.append("")
+
     # Phase 3 — Exploitation
     p3 = rs.get("phase3", {})
     lines += ["## Phase 3 — Exploitation", ""]
-    lines += [p3["summary"], ""] if p3.get("summary") else ["_(no data recorded)_", ""]
+
+    credentials = p3.get("credentials", [])
+    if credentials:
+        lines += [
+            "### Credentials Found",
+            "",
+            "| Service | Port | Login | Password |",
+            "|---------|------|-------|----------|",
+        ]
+        for c in credentials:
+            lines.append(
+                f"| {c.get('service', '-')} | {c.get('port', '-')} "
+                f"| {c.get('login', '-')} | {c.get('password', '-')} |"
+            )
+        lines.append("")
+
+    databases = p3.get("databases", [])
+    if databases:
+        lines += ["### Databases Found (sqlmap)", ""]
+        for db in databases:
+            lines.append(f"- `{db}`")
+        lines.append("")
+
+    if not credentials and not databases:
+        lines += ["_(no exploitation data recorded)_", ""]
 
     # Phase 4 — Post-Exploitation
     p4 = rs.get("phase4", {})
     lines += ["## Phase 4 — Post-Exploitation", ""]
 
-    if p4.get("sysinfo"):
-        lines += ["### System Info", "", f"```\n{p4['sysinfo']}\n```", ""]
+    sysinfo_raw = p4.get("sysinfo")
+    sysinfo_parsed = p4.get("sysinfo_parsed", {})
+    if sysinfo_parsed:
+        lines += ["### System Info", ""]
+        for k, v in sysinfo_parsed.items():
+            lines.append(f"- **{k}:** {v}")
+        lines.append("")
+    elif sysinfo_raw:
+        lines += ["### System Info", "", f"```\n{sysinfo_raw}\n```", ""]
 
     hashes = p4.get("hashes", [])
     if hashes:
@@ -135,17 +183,28 @@ def _build_plaintext(session: "Session") -> str:
         lines.append(f"  [{e.get('score', 0)}] {e['title']}")
     for c in p2.get("cves", []):
         lines.append(f"  {c['cve_id']}  CVSS:{c.get('cvss_score', '-')}")
+    for entry in p2.get("gobuster", [])[:10]:
+        lines.append(f"  {entry['path']}  ({entry['status']})")
     lines.append("")
 
     p3 = rs.get("phase3", {})
     lines += [thin, "Phase 3 — Exploitation", thin]
-    lines.append(p3.get("summary", "No data recorded."))
+    for c in p3.get("credentials", []):
+        lines.append(f"  CREDENTIAL  {c.get('service')}:{c.get('port')}  {c.get('login')} / {c.get('password')}")
+    for db in p3.get("databases", []):
+        lines.append(f"  DATABASE  {db}")
+    if not p3.get("credentials") and not p3.get("databases"):
+        lines.append("  No data recorded.")
     lines.append("")
 
     p4 = rs.get("phase4", {})
     lines += [thin, "Phase 4 — Post-Exploitation", thin]
-    if p4.get("sysinfo"):
-        lines.append(p4["sysinfo"])
+    sysinfo_parsed = p4.get("sysinfo_parsed", {})
+    if sysinfo_parsed:
+        for k, v in sysinfo_parsed.items():
+            lines.append(f"  {k}: {v}")
+    elif p4.get("sysinfo"):
+        lines.append(p4["sysinfo"][:500])
     for h in p4.get("hashes", []):
         lines.append(f"  HASH: {h}")
     lines.append("")

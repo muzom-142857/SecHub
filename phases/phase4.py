@@ -10,24 +10,28 @@ BASIC_TOOLS: list[Tool] = [
         label="System info",
         command_template="whoami && id && uname -a && hostname && ip addr",
         description="Collect current user, privileges, OS, and network info",
+        timeout=15,
     ),
     Tool(
         id="sudo_check",
         label="sudo privileges",
         command_template="sudo -l",
         description="List commands the current user can run via sudo",
+        timeout=10,
     ),
     Tool(
         id="suid_check",
         label="SUID binaries",
         command_template="find / -perm -4000 -type f 2>/dev/null",
         description="Find SUID binaries — common privilege escalation vectors",
+        timeout=60,
     ),
     Tool(
         id="capabilities",
         label="Linux capabilities",
         command_template="getcap -r / 2>/dev/null",
         description="Find binaries with elevated capabilities — often exploitable for PE",
+        timeout=30,
     ),
     Tool(
         id="cron_enum",
@@ -40,6 +44,7 @@ BASIC_TOOLS: list[Tool] = [
             "find /var/spool/cron -readable 2>/dev/null"
         ),
         description="Enumerate cron jobs — writable scripts run by cron are a PE path (HTB Bashed)",
+        timeout=15,
     ),
     Tool(
         id="writable_check",
@@ -49,30 +54,35 @@ BASIC_TOOLS: list[Tool] = [
             "-not -path '*/dev/*' 2>/dev/null | grep -v snap | head -40"
         ),
         description="Find world-writable files and directories — PATH hijack, cron abuse",
+        timeout=60,
     ),
     Tool(
         id="process_list",
         label="Process list",
         command_template="ps aux",
         description="List all running processes",
+        timeout=10,
     ),
     Tool(
         id="network_info",
         label="Internal network",
         command_template="netstat -tulnp 2>/dev/null || ss -tulnp",
         description="Show open ports and internal services",
+        timeout=10,
     ),
     Tool(
         id="nfs_check",
         label="NFS exports",
         command_template="showmount -e localhost 2>/dev/null; cat /etc/exports 2>/dev/null",
         description="Check NFS exports — no_root_squash misconfiguration enables root PE",
+        timeout=15,
     ),
     Tool(
         id="env_check",
         label="Environment variables",
         command_template="env; cat /etc/environment 2>/dev/null; echo $PATH",
         description="Check env vars and PATH — LD_PRELOAD or PATH hijack may be possible",
+        timeout=10,
     ),
     Tool(
         id="interesting_files",
@@ -83,6 +93,7 @@ BASIC_TOOLS: list[Tool] = [
             "2>/dev/null | grep -v proc | head -30"
         ),
         description="Search for backup files, SSH keys, password files — often contain credentials",
+        timeout=60,
     ),
     Tool(
         id="cred_hunt",
@@ -93,6 +104,7 @@ BASIC_TOOLS: list[Tool] = [
             "find / -name '*.conf' -readable 2>/dev/null | head -20"
         ),
         description="Search config files and shell history for credentials",
+        timeout=30,
     ),
 ]
 

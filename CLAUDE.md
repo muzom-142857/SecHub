@@ -97,27 +97,38 @@ sechub/
 
 | Type | Tool | Condition |
 |------|------|-----------|
-| Basic | searchsploit | always (query auto-built from Phase 1) |
-| Basic | NIST NVD API | always |
+| Basic | searchsploit | always (query auto-built from all Phase 1 versions) |
+| Basic | nvd_lookup (NIST NVD API) | always (api_tool — no subprocess) |
 | Optional | nikto | port 80/443 open |
 | Optional | whatweb | port 80/443 open |
+| Optional | nmap http-vuln | port 80/443 open |
 | Optional | nmap smb-vuln-* | port 445 open |
+| Optional | smbmap | port 445 open |
 | Optional | nmap ftp-anon | port 21 open |
 | Optional | nmap mysql-* | port 3306 open |
+| Optional | nmap rdp-check | port 3389 open |
+| Optional | nmap ssh-check | port 22 open |
+| Optional | nmap distcc RCE | port 3632 open |
+| Optional | nmap nfs-ls | port 2049 open |
 
-searchsploit results are scored by version match (+10), service name (+3),
-platform match (+5), and "remote" keyword (+2), then sorted descending.
+searchsploit results are scored against **all** detected service/version pairs
+(not just the first port); the max score per exploit is used, then sorted descending.
 
 ### Phase 3 — Exploitation
 
-| Tool | Condition |
-|------|-----------|
-| msfconsole -x | MSF module mapped from Phase 2 |
-| Hydra | credential services open (22, 21, 23, 25, 110, 143, 3389) |
-| searchsploit -m | always available |
-| sqlmap | port 80/443 open |
+| Tool | Condition | Notes |
+|------|-----------|-------|
+| msfconsole -x | MSF module mapped from Phase 2 | |
+| Hydra | credential services open (22, 21, 23, 25, 110, 143, 3389) | |
+| searchsploit -m | always available | |
+| sqlmap | port 80/443 open | |
+| reverse_shell_bash | port 80/443 open | `display_only=True` — shows command, does NOT execute |
+| reverse_shell_python | port 80/443 open | `display_only=True` — shows command, does NOT execute |
+| nc listener | always available | |
+| webshell_curl | port 80/443 open | |
 
-Wordlist paths are specified by the user at runtime via a modal input dialog.
+Wordlist paths and other parameters are collected via a modal input dialog before running.
+`display_only=True` tools open `CommandDisplayScreen` with the built command for copy/paste.
 
 ### Phase 4 — Post-Exploitation
 
@@ -197,6 +208,7 @@ Supported conditions:
 | `b` | Return to previous phase |
 | `e` | Toggle output panel fullscreen |
 | `R` | Generate and save report |
+| `Ctrl+C` | Cancel running tool (kills process group) |
 | `q` | Quit |
 | `?` | Show help overlay |
 
@@ -209,14 +221,16 @@ Supported conditions:
 - On restart, incomplete sessions can be resumed from the start screen
 - Corrupted phase files are silently skipped to preserve other phase data
 
+Sessions are stored at `<project_root>/sessions/` regardless of launch directory.
+
 ```
 sessions/
 └── 2026-04-24_10.10.10.1/
     ├── session.json   (metadata: target, phase, timestamps)
     ├── phase1.json
     ├── phase2.json
-    ├── phase3.json
-    ├── phase4.json
+    ├── phase3.json    (credentials, databases)
+    ├── phase4.json    (sysinfo, hashes)
     └── report.md      (or report.txt)
 ```
 

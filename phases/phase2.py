@@ -9,8 +9,16 @@ BASIC_TOOLS: list[Tool] = [
         id="searchsploit",
         label="searchsploit",
         command_template="searchsploit {query}",
-        description="Search ExploitDB; results sorted by relevance score",
+        description="Search ExploitDB; results sorted by relevance score across all detected services",
         requires_input=["query"],
+        timeout=30,
+    ),
+    Tool(
+        id="nvd_lookup",
+        label="NIST NVD lookup",
+        command_template="",
+        description="Query NIST NVD API for CVEs matched to all detected service versions",
+        api_tool=True,
     ),
 ]
 
@@ -22,6 +30,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Web vulnerability scanner",
         optional=True,
         condition="port_web",
+        timeout=300,
     ),
     Tool(
         id="whatweb",
@@ -30,6 +39,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Identify web technologies and frameworks",
         optional=True,
         condition="port_web",
+        timeout=30,
     ),
     Tool(
         id="nmap_http_vuln",
@@ -38,6 +48,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="HTTP vulnerability scripts — LFI, shellshock, CVE checks",
         optional=True,
         condition="port_web",
+        timeout=90,
     ),
     Tool(
         id="nmap_smb_vuln",
@@ -46,6 +57,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="SMB vulnerability scan (EternalBlue, MS17-010, etc.)",
         optional=True,
         condition="port_smb",
+        timeout=60,
     ),
     Tool(
         id="smbmap",
@@ -54,6 +66,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Map SMB shares and permissions — identifies writable shares",
         optional=True,
         condition="port_smb",
+        timeout=30,
     ),
     Tool(
         id="nmap_ftp_anon",
@@ -62,6 +75,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Check anonymous FTP access and known FTP backdoors",
         optional=True,
         condition="port_ftp",
+        timeout=30,
     ),
     Tool(
         id="nmap_mysql",
@@ -70,6 +84,25 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="MySQL information gathering and empty-password check",
         optional=True,
         condition="port_mysql",
+        timeout=30,
+    ),
+    Tool(
+        id="nmap_rdp_check",
+        label="nmap (rdp-check)",
+        command_template="nmap --script rdp-enum-encryption,rdp-vuln-ms12-020 -p 3389 {target}",
+        description="Check RDP encryption level and CVE-2012-0002 (MS12-020) DoS vulnerability",
+        optional=True,
+        condition="port_rdp",
+        timeout=30,
+    ),
+    Tool(
+        id="nmap_ssh_check",
+        label="nmap (ssh-check)",
+        command_template="nmap --script ssh-auth-methods,ssh-hostkey -p 22 {target}",
+        description="Enumerate SSH authentication methods and host key fingerprints",
+        optional=True,
+        condition="port_ssh",
+        timeout=30,
     ),
     Tool(
         id="nmap_distcc_vuln",
@@ -78,6 +111,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Confirm distccd RCE — CVE-2004-2687 (common HTB Lame path)",
         optional=True,
         condition="port_distcc",
+        timeout=30,
     ),
     Tool(
         id="nmap_nfs_vuln",
@@ -86,6 +120,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="List NFS share contents — may expose world-readable sensitive files",
         optional=True,
         condition="port_nfs",
+        timeout=30,
     ),
 ]
 
@@ -98,6 +133,8 @@ def get_tools(open_ports: set[int]) -> list[Tool]:
         "port_smb": bool(open_ports & {445, 139}),
         "port_ftp": bool(open_ports & {21}),
         "port_mysql": bool(open_ports & {3306}),
+        "port_rdp": bool(open_ports & {3389}),
+        "port_ssh": bool(open_ports & {22}),
         "port_distcc": bool(open_ports & {3632}),
         "port_nfs": bool(open_ports & {2049}),
     }

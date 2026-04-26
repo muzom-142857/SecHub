@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 
-SESSIONS_DIR = Path("sessions")
+SESSIONS_DIR = Path(__file__).parent.parent / "sessions"
 
 
 class Session:

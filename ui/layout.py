@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen, Screen
 from textual.widgets import (
@@ -47,9 +48,15 @@ class TargetInputScreen(Screen):
             id="target_container",
         )
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "target_input":
+            self._submit()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id != "start_btn":
-            return
+        if event.button.id == "start_btn":
+            self._submit()
+
+    def _submit(self) -> None:
         target = self.query_one("#target_input", Input).value.strip()
         if not target:
             return
@@ -121,19 +128,66 @@ class ToolInputScreen(ModalScreen):
         )
         yield Vertical(*fields, id="tool_input_container")
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if self.required_fields and event.input.id == f"input_{self.required_fields[-1]}":
+            self._submit()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel_btn":
             self.dismiss(None)
             return
         if event.button.id == "run_btn":
-            values: dict[str, str] = {}
-            for field in self.required_fields:
-                widget = self.query_one(f"#input_{field}", Input)
-                values[field] = widget.value.strip()
-            self.dismiss(values)
+            self._submit()
+
+    def _submit(self) -> None:
+        values: dict[str, str] = {}
+        for field in self.required_fields:
+            widget = self.query_one(f"#input_{field}", Input)
+            values[field] = widget.value.strip()
+        self.dismiss(values)
+
+
+# ── Command display modal ──────────────────────────────────────────
+
+class CommandDisplayScreen(ModalScreen):
+    """Show a fully-formed command for manual copy/paste onto the target."""
+
+    BINDINGS = [Binding("escape", "dismiss_screen", "Close")]
+
+    def __init__(self, tool_label: str, command: str) -> None:
+        super().__init__()
+        self.tool_label = tool_label
+        self.command = command
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(f"[bold]Run on target:[/bold] {self.tool_label}", id="cmd_title"),
+            Static(
+                "[dim]Copy this command and run it manually on the target system:[/dim]",
+                id="cmd_subtitle",
+            ),
+            Static(self.command, id="cmd_text"),
+            Button("Close", variant="primary", id="close_btn"),
+            id="cmd_display_container",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close_btn":
+            self.dismiss()
+
+    def action_dismiss_screen(self) -> None:
+        self.dismiss()
 
 
 # ── Main phase layout ──────────────────────────────────────────────
+
+_STATUS_MARKERS: dict[str, str] = {
+    "pending": "[dim]○[/dim]",
+    "running": "[bold yellow]▶[/bold yellow]",
+    "done":    "[bold green]✓[/bold green]",
+    "failed":  "[bold red]✗[/bold red]",
+}
+
 
 class PhaseLayout(Screen):
     PHASE_LABELS: dict[int, str] = {
@@ -156,6 +210,7 @@ class PhaseLayout(Screen):
         self.tools = tools
         self.recommendations = recommendations
         self._expanded = False
+        self._tool_statuses: dict[int, str] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(self._header_text(), id="header_bar")
@@ -163,7 +218,10 @@ class PhaseLayout(Screen):
             Vertical(
                 Static("Tools", classes="panel_title"),
                 ListView(
-                    *[ListItem(Label(self._tool_label(t))) for t in self.tools],
+                    *[
+                        ListItem(Label(self._tool_label(t, "pending"), markup=True))
+                        for t in self.tools
+                    ],
                     id="tool_list",
                 ),
                 id="tool_panel",
@@ -184,15 +242,16 @@ class PhaseLayout(Screen):
     def on_mount(self) -> None:
         self._render_recommendations()
 
-    # ── Internal helpers ──────────────────────────────────────────
+    # ── Internal helpers ──────────────────────────────────────
 
     def _header_text(self) -> str:
         label = self.PHASE_LABELS.get(self.phase, "")
         return f" SecHub  |  Phase {self.phase}: {label}  |  Target: {self.target} "
 
-    def _tool_label(self, tool: Any) -> str:
-        suffix = " [optional]" if getattr(tool, "optional", False) else ""
-        return f"  {tool.label}{suffix}"
+    def _tool_label(self, tool: Any, status: str = "pending") -> str:
+        marker = _STATUS_MARKERS.get(status, "[dim]○[/dim]")
+        suffix = " [opt]" if getattr(tool, "optional", False) else ""
+        return f"  {marker} {tool.label}{suffix}"
 
     def _render_recommendations(self) -> None:
         log = self.query_one("#rec_log", RichLog)
@@ -202,9 +261,11 @@ class PhaseLayout(Screen):
             return
         for rec in self.recommendations:
             cve = f"  [bold red][{rec['cve']}][/bold red]" if rec.get("cve") else ""
-            log.write(f"[green]→[/green] [bold]{rec['action']}[/bold]{cve}  — {rec['description']}")
+            log.write(
+                f"[green]→[/green] [bold]{rec['action']}[/bold]{cve}  — {rec['description']}"
+            )
 
-    # ── Public API called by SecHubApp ────────────────────────────
+    # ── Public API called by SecHubApp ────────────────────────
 
     def refresh_tools(
         self,
@@ -217,16 +278,25 @@ class PhaseLayout(Screen):
         self.target = target
         self.tools = tools
         self.recommendations = recommendations
+        self._tool_statuses = {}
         self.query_one("#header_bar", Static).update(self._header_text())
         tool_list = self.query_one("#tool_list", ListView)
         tool_list.clear()
         for tool in tools:
-            tool_list.append(ListItem(Label(self._tool_label(tool))))
+            tool_list.append(ListItem(Label(self._tool_label(tool, "pending"), markup=True)))
         self.update_recommendations(recommendations)
         self.clear_output()
 
     def select_tool(self, index: int) -> None:
         self.query_one("#tool_list", ListView).index = index
+
+    def set_tool_status(self, index: int, status: str) -> None:
+        self._tool_statuses[index] = status
+        items = list(self.query_one("#tool_list", ListView).query(ListItem))
+        if 0 <= index < len(items) and index < len(self.tools):
+            items[index].query_one(Label).update(
+                self._tool_label(self.tools[index], status)
+            )
 
     def set_tool_running(self, tool_label: str) -> None:
         self.query_one("#output_log", RichLog).write(
@@ -305,21 +375,34 @@ class HelpScreen(ModalScreen):
     HELP_TEXT = """\
 [bold]SecHub Keybindings[/bold]
 
-  [bold cyan]r[/bold cyan]  Run selected tool
-  [bold cyan]s[/bold cyan]  Skip to next tool
-  [bold cyan]n[/bold cyan]  Advance to next phase
-  [bold cyan]b[/bold cyan]  Go back to previous phase
-  [bold cyan]e[/bold cyan]  Toggle output panel fullscreen
-  [bold cyan]R[/bold cyan]  Generate and save report
-  [bold cyan]q[/bold cyan]  Quit
-  [bold cyan]?[/bold cyan]  Show this help
+  [bold cyan]r[/bold cyan]      Run selected tool
+  [bold cyan]s[/bold cyan]      Skip to next tool
+  [bold cyan]n[/bold cyan]      Advance to next phase
+  [bold cyan]b[/bold cyan]      Go back to previous phase
+  [bold cyan]e[/bold cyan]      Toggle output panel fullscreen
+  [bold cyan]R[/bold cyan]      Generate and save report
+  [bold cyan]Ctrl+C[/bold cyan] Cancel running tool
+  [bold cyan]q[/bold cyan]      Quit
+  [bold cyan]?[/bold cyan]      Show this help
+
+[bold]Tool Status Markers[/bold]
+
+  [dim]○[/dim]  Pending (not yet run)
+  [bold yellow]▶[/bold yellow]  Running
+  [bold green]✓[/bold green]  Done (success)
+  [bold red]✗[/bold red]  Failed or cancelled
 
 [bold]Phase Flow[/bold]
 
-  Phase 1 → Reconnaissance      (whois, nmap)
-  Phase 2 → Vulnerability Analysis  (searchsploit, nikto, NVD API)
-  Phase 3 → Exploitation         (MSF, Hydra, sqlmap)
-  Phase 4 → Post-Exploitation    (PE, credential hunt, hash cracking)
+  Phase 1 → Reconnaissance        (whois, nmap)
+  Phase 2 → Vulnerability Analysis (searchsploit, NVD API, nikto)
+  Phase 3 → Exploitation          (MSF, Hydra, sqlmap)
+  Phase 4 → Post-Exploitation     (PE, credential hunt, hash cracking)
+
+[bold]Notes[/bold]
+
+  Reverse shell tools display the command for copy/paste — they do not run locally.
+  NVD lookup queries the NIST API; requires an internet connection.
 """
 
     def compose(self) -> ComposeResult:

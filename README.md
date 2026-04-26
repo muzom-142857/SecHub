@@ -10,16 +10,16 @@ sacrificing any capability or control.
 ├─────────────────────┬────────────────────────────────────┤
 │  Tools              │  Output                            │
 │                     │                                    │
-│  ▶ searchsploit     │  [7] Apache 2.4.49 - Path Trav...  │
-│    nikto            │  [5] OpenSSH 8.2 - Username Enu... │
-│    whatweb [opt]    │  ...                               │
+│  ✓ searchsploit     │  [7] Apache 2.4.49 - Path Trav...  │
+│  ▶ NVD lookup       │  CVE-2021-41773  CVSS:9.8  ...     │
+│  ○ nikto [opt]      │  ...                               │
 │                     │                                    │
 ├─────────────────────┴────────────────────────────────────┤
 │  Recommendations                                         │
 │  → sqlmap  — SQL injection (web service detected)        │
 │  → hydra   — Credential brute-force                      │
 ├──────────────────────────────────────────────────────────┤
-│  [r]Run  [s]Skip  [n]Next  [b]Back  [e]Expand  [?]Help  │
+│  [r]Run [s]Skip [n]Next [b]Back [e]Expand [^C]Cancel [?] │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -43,6 +43,7 @@ SecHub solves this by:
 ## Prerequisites
 
 SecHub orchestrates external tools — they must be installed and on your `$PATH`.
+If a tool is missing, SecHub shows an error instead of running and marks it as failed.
 
 | Tool | Phase | Install (Debian/Kali) |
 |------|-------|-----------------------|
@@ -55,6 +56,7 @@ SecHub orchestrates external tools — they must be installed and on your `$PATH
 | `searchsploit` | 2, 3 | `apt install exploitdb` |
 | `nikto` | 2 | `apt install nikto` |
 | `whatweb` | 2 | `apt install whatweb` |
+| `smbmap` | 2 | `apt install smbmap` |
 | `metasploit-framework` | 3 | `apt install metasploit-framework` |
 | `hydra` | 3 | `apt install hydra` |
 | `sqlmap` | 3 | `apt install sqlmap` |
@@ -80,14 +82,12 @@ pip install -r requirements.txt
 ## Running
 
 ```bash
-# Activate the virtual environment first
 source .venv/bin/activate
-
 python main.py
 ```
 
 On the start screen, enter an IP address or domain name, choose **New session** or
-**Resume previous session**, and press **Start**.
+**Resume previous session**, and press **Start** (or Enter).
 
 ---
 
@@ -101,15 +101,18 @@ After the fast scan completes, optional tools are added automatically:
 
 | Detected | Tool added |
 |----------|-----------|
-| Port 80 / 443 | gobuster |
+| Port 80 / 443 | gobuster, gobuster (vhost) |
 | Domain target | dnsenum |
-| Port 445 | enum4linux |
+| Port 445 | enum4linux, smbclient |
 | Port 25 | smtp-user-enum |
+| Port 111 | nmap rpcinfo |
+| Port 2049 | nmap nfs-showmount |
+| Port 3632 | nmap distcc check |
 
 ### Phase 2 — Vulnerability Analysis
 
-`searchsploit` runs with a query automatically built from every service/version
-string found in Phase 1. Results are scored and sorted by:
+`searchsploit` runs with a query automatically built from **every** service/version
+string found in Phase 1. Results are scored against all ports and sorted by:
 
 | Criterion | Score |
 |-----------|-------|
@@ -118,10 +121,21 @@ string found in Phase 1. Results are scored and sorted by:
 | Platform matches detected OS | +5 |
 | Title contains "remote" | +2 |
 
-The NIST NVD API is queried for CVEs; results are sorted by CVSS score descending.
+**NIST NVD lookup** is a runnable tool — select it to query the NVD API for CVEs
+matched to all detected service/version pairs. Requires an internet connection.
 
-Optional tools appear when their target port is open (nikto/whatweb on 80/443,
-nmap smb-vuln on 445, etc.).
+Optional tools appear when their target port is open:
+
+| Port | Tool |
+|------|------|
+| 80 / 443 | nikto, whatweb, nmap http-vuln |
+| 445 | nmap smb-vuln, smbmap |
+| 21 | nmap ftp-anon |
+| 3306 | nmap mysql |
+| 22 | nmap ssh-check |
+| 3389 | nmap rdp-check |
+| 3632 | nmap distcc RCE |
+| 2049 | nmap nfs-ls |
 
 ### Phase 3 — Exploitation
 
@@ -132,6 +146,9 @@ Tools are chosen based on Phase 2 findings:
 - **searchsploit -m** — always available to copy a script locally
 - **sqlmap** — when a web port is open
 
+**Reverse shell tools** (`bash`, `python3`) display the command in a modal for
+copy/paste onto the target — they do **not** execute locally.
+
 Tools that require parameters (wordlist paths, URL, MSF module name) display a
 modal input dialog before running.
 
@@ -141,24 +158,38 @@ Runs shell commands on the target after a session is obtained:
 
 | Tool | Purpose |
 |------|---------|
-| `whoami && id && uname -a` | Confirm user, OS |
-| `sudo -l` | List sudo permissions |
-| `find / -perm -4000` | Find SUID binaries |
-| `ps aux` | List running processes |
-| `netstat` / `ss` | Internal services |
+| System info | Confirm user, OS, kernel (auto-parsed) |
+| sudo privileges | List sudo permissions |
+| SUID binaries | Find SUID PE vectors |
+| Linux capabilities | Find elevated-capability binaries |
+| Cron jobs | Enumerate scheduled tasks |
+| Writable paths | Find world-writable files |
+| Process list | List running processes |
+| Internal network | Open ports and services |
+| Interesting files | SSH keys, backup files, config passwords |
 | Credential hunt | Config files, shell history |
-| john / hashcat | Hash cracking (only when hashes detected) |
+| john / hashcat | Hash cracking (appears when hashes detected in output) |
 
-linpeas / winpeas must be uploaded manually; SecHub will parse their output
-if you paste it into the output panel context.
+Hash strings are automatically extracted from **every** Phase 4 tool's output and
+stored for cracking. linpeas / winpeas must be uploaded manually.
+
+---
+
+## Cancellation
+
+Press **Ctrl+C** at any time to kill the currently running tool.
+The process group (including child processes like `nmap` under `sudo`) is sent
+`SIGKILL`, partial output is preserved, and the tool is marked as failed.
+Use `q` to quit SecHub.
 
 ---
 
 ## Session Management
 
-Sessions are stored in `./sessions/<date>_<target>/` relative to where you run
-`main.py`. Every tool execution saves its result immediately — if SecHub is closed,
-the session can be resumed from the start screen.
+Sessions are stored in `sessions/<date>_<target>/` relative to the project root,
+regardless of where you launch `main.py` from. Every tool execution saves its
+result immediately — if SecHub is closed, the session can be resumed from the
+start screen.
 
 ```
 sessions/
@@ -166,8 +197,8 @@ sessions/
     ├── session.json   # metadata
     ├── phase1.json    # port/OS/whois data
     ├── phase2.json    # exploits, CVEs, scanner output
-    ├── phase3.json    # exploitation results
-    ├── phase4.json    # post-ex data, hashes
+    ├── phase3.json    # credentials, databases
+    ├── phase4.json    # system info, hashes
     └── report.md      # generated report
 ```
 
@@ -184,8 +215,9 @@ Reports include:
 - OS detection
 - ExploitDB results (top 10 by score)
 - CVE list with CVSS scores
-- Exploitation summary
-- System info, collected hashes
+- Discovered web directories and technologies
+- Exploitation results (credentials, databases)
+- System info (parsed), collected hashes
 
 ---
 
@@ -230,37 +262,6 @@ The default rules work without any customisation; custom rules are merged on top
 
 ---
 
-## Project Structure
-
-```
-sechub/
-├── main.py                  Entry point
-├── requirements.txt         Python dependencies
-├── CLAUDE.md                Project design doc (for Claude Code)
-├── core/
-│   ├── runner.py            Async subprocess execution
-│   ├── parser.py            Tool output parsers
-│   ├── analyzer.py          Rule engine → recommendations
-│   └── session.py           Session persistence
-├── phases/
-│   ├── common.py            Shared Tool dataclass + build_command
-│   ├── phase1.py            Reconnaissance tool definitions
-│   ├── phase2.py            Vulnerability analysis + NVD API
-│   ├── phase3.py            Exploitation tool definitions
-│   └── phase4.py            Post-exploitation + hash detection
-├── ui/
-│   ├── app.py               App root, keybindings, phase logic
-│   ├── layout.py            Screen classes
-│   └── style.tcss           Terminal stylesheet
-├── rules/
-│   └── default.yaml         Built-in rule table (18 rules)
-├── report/
-│   └── generator.py         Markdown / plain-text report builder
-└── sessions/                Created at runtime
-```
-
----
-
 ## Keybindings
 
 | Key | Action |
@@ -271,8 +272,40 @@ sechub/
 | `b` | Return to previous phase |
 | `e` | Toggle output panel fullscreen |
 | `R` | Generate and save report |
+| `Ctrl+C` | Cancel running tool |
 | `q` | Quit |
 | `?` | Help overlay |
+
+---
+
+## Project Structure
+
+```
+sechub/
+├── main.py                  Entry point
+├── requirements.txt         Python dependencies
+├── CLAUDE.md                Project design doc (for Claude Code)
+├── core/
+│   ├── runner.py            Async subprocess execution + ProcessHandle
+│   ├── parser.py            Tool output parsers (nmap, whois, gobuster, hydra, etc.)
+│   ├── analyzer.py          Rule engine → recommendations
+│   └── session.py           Session persistence
+├── phases/
+│   ├── common.py            Tool dataclass (timeout, display_only, api_tool) + build_command
+│   ├── phase1.py            Reconnaissance tool definitions
+│   ├── phase2.py            Vulnerability analysis + NVD API
+│   ├── phase3.py            Exploitation tool definitions
+│   └── phase4.py            Post-exploitation + hash detection
+├── ui/
+│   ├── app.py               App root, keybindings, phase logic
+│   ├── layout.py            Screen classes (incl. CommandDisplayScreen)
+│   └── style.tcss           Terminal stylesheet
+├── rules/
+│   └── default.yaml         Built-in rule table
+├── report/
+│   └── generator.py         Markdown / plain-text report builder
+└── sessions/                Created at runtime (project root)
+```
 
 ---
 

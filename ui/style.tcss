@@ -151,3 +151,33 @@ RichLog {
     background: #0d1117;
     padding: 0 1;
 }
+
+/* ── Command display modal ─────────────────────────────────── */
+#cmd_display_container {
+    align: center middle;
+    width: 80%;
+    height: auto;
+    max-height: 80%;
+    border: solid #f0883e;
+    padding: 2 4;
+    background: #161b22;
+}
+
+#cmd_title {
+    color: #f0883e;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#cmd_subtitle {
+    color: #8b949e;
+    margin-bottom: 1;
+}
+
+#cmd_text {
+    background: #0d1117;
+    color: #58a6ff;
+    padding: 1 2;
+    border: solid #30363d;
+    margin: 1 0;
+}
